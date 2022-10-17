@@ -24,6 +24,7 @@ import (
 	"net/http/pprof"
 	"os"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/spf13/pflag"
@@ -47,6 +48,10 @@ import (
 	"sigs.k8s.io/cluster-api-provider-vsphere/pkg/version"
 )
 
+const (
+	defaultMinTLSVersion = "VersionTLS12"
+)
+
 var (
 	setupLog   = ctrl.Log.WithName("entrypoint")
 	logOptions = logs.NewOptions()
@@ -54,6 +59,7 @@ var (
 	managerOpts     manager.Options
 	syncPeriod      time.Duration
 	profilerAddress string
+	minTLSVersion   string
 
 	defaultProfilerAddr      = os.Getenv("PROFILER_ADDR")
 	defaultSyncPeriod        = manager.DefaultSyncPeriod
@@ -143,6 +149,12 @@ func InitFlags(fs *pflag.FlagSet) {
 		"",
 		"network provider to be used by Supervisor based clusters.",
 	)
+	flag.StringVar(
+		&minTLSVersion,
+		"tls-min-version",
+		defaultMinTLSVersion,
+		"Minimum TLS version supported. "+
+			"Possible values: "+strings.Join(cliflag.TLSPossibleVersions(), ", "))
 
 	feature.MutableGates.AddFlag(fs)
 }
@@ -225,6 +237,8 @@ func main() {
 		setupLog.Error(err, "problem creating controller manager")
 		os.Exit(1)
 	}
+
+	mgr.GetWebhookServer().TLSMinVersion = minTLSVersion
 
 	setupChecks(mgr)
 
